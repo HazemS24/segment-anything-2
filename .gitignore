@@ -1,0 +1,14 @@
+.vscode/
+.DS_Store
+__pycache__/
+*-checkpoint.ipynb
+.venv
+*.egg*
+build/*
+_C.*
+outputs/*
+output/
+video/
+white_bag_pics/
+checkpoints/*.pt
+output_with_masks.png
