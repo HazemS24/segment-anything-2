@@ -70,8 +70,8 @@ def calculate_heights(mask, depth_image):
         return float('nan'), float('nan')
 
     if len(masked_depth_values) > 0:
-        avg_height = np.mean(valid_depth_values)  # Average depth value (height)
-        min_height = np.min(valid_depth_values)   # Minimum depth value (closest point)
+        avg_height = np.mean(valid_depth_values) # Average depth value (height)
+        min_height = np.min(valid_depth_values) # Minimum depth value (closest point)
         return avg_height, min_height
     else:
         return None, None
@@ -79,9 +79,10 @@ def calculate_heights(mask, depth_image):
 # Mask function
 def show_mask(mask, ax, obj_id=None, centroid=None, avg_height=None, min_height=None):
     h, w = mask.shape
+    
     # Create a colormap with bright colors
-    colormap = plt.get_cmap('tab20')  # Using 'tab20' for distinct colors
-    color = colormap(obj_id % 20)  # Ensure a unique color for each mask
+    colormap = plt.get_cmap('tab20')
+    color = colormap(obj_id % 20) # Ensure a unique color for each mask
     color = np.array([color[0], color[1], color[2], 0.5])  # Add transparency
 
     mask_image = np.zeros((h, w, 4))
@@ -92,7 +93,8 @@ def show_mask(mask, ax, obj_id=None, centroid=None, avg_height=None, min_height=
 
     # Mark the centroid with a red dot
     if centroid is not None:
-        ax.plot(centroid[0], centroid[1], 'ro', markersize=5)  # 'ro' means red dot
+        ax.plot(centroid[0], centroid[1], 'ro', markersize=5)
+        
         # Get the area for annotation
         area = calculate_area(mask)
 
@@ -102,7 +104,7 @@ def show_mask(mask, ax, obj_id=None, centroid=None, avg_height=None, min_height=
 
         # Create a text label with area, avg height, and min height information
         label = f"Area: {area}, Avg Height: {avg_height_str}, Min Height: {min_height_str}"
-        ax.text(centroid[0], centroid[1], label, fontsize=8, ha='center', color='white', backgroundcolor='black')
+        ax.text(centroid[0], centroid[1], label, fontsize=5, ha='center', color='white', backgroundcolor='black')
 
 try:
     # Skip the first few frames to allow the pipeline to stabilize
@@ -112,7 +114,7 @@ try:
         skip_frames -= 1
 
     while True:
-        # Wait for a coherent set of frames (depth and color)
+        # Wait for a coherent set of frames
         frames = pipeline.wait_for_frames()
 
         # Align depth frame to color frame
@@ -130,12 +132,12 @@ try:
         # Automatically generate masks for the color image
         masks = mask_generator.generate(color_image)
 
-        mask_info = []  # Store information about each mask
+        mask_info = [] # Store information about each mask
 
         # Show results
         plt.figure(figsize=(12, 8))
         plt.title("Segmented Image")
-        plt.imshow(color_image) # Show the original color image
+        plt.imshow(color_image)
 
         # Display the automatically generated masks and calculate centroids
         for i, mask_dict in enumerate(masks):
@@ -148,7 +150,6 @@ try:
                     centroid = find_centroid(mask)
                     avg_height, min_height = calculate_heights(mask, depth_image)
 
-                    # Save mask info (for sorting later)
                     mask_info.append({
                         'obj_id': i,
                         'avg_height': avg_height,
@@ -168,14 +169,14 @@ try:
         plt.axis('off')
         plt.show()
 
-         # Sort masks by average height and print them with colors
+        # Sort masks by average height
         sorted_by_avg = sorted(mask_info, key=lambda x: x['avg_height'])
         print("\nSorted masks by average height:")
         for info in sorted_by_avg:
             color_str = f"RGB({info['color'][0]*255:.0f}, {info['color'][1]*255:.0f}, {info['color'][2]*255:.0f})"
             print(f"Mask {info['obj_id']+1} - Avg Height: {info['avg_height']:.2f} mm, Color: {color_str}")
 
-        # Sort masks by minimum height and print them with colors
+        # Sort masks by minimum height
         sorted_by_min = sorted(mask_info, key=lambda x: x['min_height'])
         print("\nSorted masks by minimum height:")
         for info in sorted_by_min:
