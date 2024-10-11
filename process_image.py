@@ -1,10 +1,15 @@
-import pyrealsense2 as rs
+import zmq
+import pickle
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 from sam2.build_sam import build_sam2
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
+
+# Initialize ZeroMQ context and REQ socket
+context = zmq.Context()
+socket = context.socket(zmq.REQ)
+socket.connect("tcp://localhost:5555")
 
 # Ignore annoying warnings that clutter terminal logs
 import warnings
@@ -19,25 +24,6 @@ sam2_model = build_sam2(model_cfg, sam2_checkpoint, device=device)
 
 # Use SAM2AutomaticMaskGenerator
 mask_generator = SAM2AutomaticMaskGenerator(sam2_model)
-
-# Initialize the RealSense pipeline
-pipeline = rs.pipeline()
-config = rs.config()
-
-# Configure the pipeline to stream both color and depth images
-config.enable_stream(rs.stream.color, 848, 480, rs.format.bgr8, 30)
-config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 30)
-
-# Start the pipeline
-pipeline.start(config)
-
-# Function to align depth and color frames
-align_to = rs.stream.color
-align = rs.align(align_to)
-
-# Helper function to convert RealSense frame to a numpy array
-def rs_frame_to_np(frame):
-    return np.asanyarray(frame.get_data())
 
 # Function to calculate the centroid of a mask
 def find_centroid(mask):
@@ -107,27 +93,14 @@ def show_mask(mask, ax, obj_id=None, centroid=None, avg_height=None, min_height=
         ax.text(centroid[0], centroid[1], label, fontsize=5, ha='center', color='white', backgroundcolor='black')
 
 try:
-    # Skip the first few frames to allow the pipeline to stabilize
-    skip_frames = 25
-    while skip_frames > 0:
-        pipeline.wait_for_frames()
-        skip_frames -= 1
+    while (True):
+        # Request image from server
+        socket.send(b"capture")
+        print("Getting image from server...")
+        message = socket.recv()
 
-    while True:
-        # Wait for a coherent set of frames
-        frames = pipeline.wait_for_frames()
-
-        # Align depth frame to color frame
-        aligned_frames = align.process(frames)
-        color_frame = aligned_frames.get_color_frame()
-        depth_frame = aligned_frames.get_depth_frame()
-
-        if not color_frame or not depth_frame:
-            continue
-
-        # Convert frames to numpy arrays
-        color_image = rs_frame_to_np(color_frame)
-        depth_image = rs_frame_to_np(depth_frame)
+        # Deserialize the received images
+        color_image, depth_image = pickle.loads(message)
 
         # Automatically generate masks for the color image
         masks = mask_generator.generate(color_image)
@@ -184,8 +157,8 @@ try:
             print(f"Mask {info['obj_id']+1} - Min Height: {info['min_height']:.2f} mm, Color: {color_str}")
 
 except KeyboardInterrupt:
-    print("Stopped by user")
+    print("Stopping by user interrupt...")
 
 finally:
     # Stop the pipeline when done
-    pipeline.stop()
+    print("Client stopped")
