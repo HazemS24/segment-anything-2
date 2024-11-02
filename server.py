@@ -1,7 +1,8 @@
 import pyrealsense2 as rs
 import numpy as np
 import zmq
-import pickle
+import json
+import base64
 
 # Initialize ZeroMQ context and REP socket
 context = zmq.Context()
@@ -57,9 +58,19 @@ try:
             color_image = rs_frame_to_np(color_frame)
             depth_image = rs_frame_to_np(depth_frame)
 
-            # Serialize images and send them back to the client
-            socket.send(pickle.dumps((color_image, depth_image)))
-            print("Sent image to client.")
+            # Encode the images to base64 strings
+            color_encoded = base64.b64encode(color_image).decode('utf-8')
+            depth_encoded = base64.b64encode(depth_image).decode('utf-8')
+
+            # Serialize images and send them to  client
+            data = {
+                "color_image": color_encoded,
+                "depth_image": depth_encoded
+            }
+
+            # Send the JSON data to the client
+            socket.send_json(data)
+            print("Sent image to client as JSON.")
         
         except zmq.Again:
             pass

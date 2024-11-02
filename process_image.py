@@ -1,5 +1,6 @@
 import zmq
-import pickle
+import json
+import base64
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -98,9 +99,11 @@ try:
         socket.send(b"capture")
         print("Getting image from server...")
         message = socket.recv()
+        message_dict = json.loads(message.decode('utf-8'))
 
         # Deserialize the received images
-        color_image, depth_image = pickle.loads(message)
+        color_image = np.frombuffer(base64.b64decode(message_dict["color_image"]), dtype=np.uint8).reshape((480, 848, 3))
+        depth_image = np.frombuffer(base64.b64decode(message_dict["depth_image"]), dtype=np.uint16).reshape((480, 848))
 
         # Automatically generate masks for the color image
         masks = mask_generator.generate(color_image)
